@@ -1,11 +1,12 @@
-# Parser-Free Virtual Try-on via Distilling Appearance Flows, CVPR 2021
-Official code for CVPR 2021 paper 'Parser-Free Virtual Try-on via Distilling Appearance Flows'
+<div align="center">
+  <img src="show/github_ainoviq.png" width="500"/>
+</div>
 
+# Introduction
 
-**The training code has been released.**
+This repo is a fusion of 'Parser-Free Virtual Try-on via Distilling Appearance Flows(PFAFN)' and 'Regional Mask Guided Network(RMGN)'.
 
-![image](https://github.com/geyuying/PF-AFN/blob/main/show/compare_both.jpg?raw=true)
-
+# References
 [[Paper]](https://openaccess.thecvf.com/content/CVPR2021/papers/Ge_Parser-Free_Virtual_Try-On_via_Distilling_Appearance_Flows_CVPR_2021_paper.pdf)       [[Supplementary Material]](https://github.com/geyuying/PF-AFN/blob/main/PFAFN_supp.pdf)
 
 [[Checkpoints for Test]](https://drive.google.com/file/d/1_a0AiN8Y_d_9TNDhHIcRlERz3zptyYWV/view?usp=sharing)
@@ -15,39 +16,58 @@ Official code for CVPR 2021 paper 'Parser-Free Virtual Try-on via Distilling App
 
 [[VGG_Model]](https://drive.google.com/file/d/1Mw24L52FfOT9xXm3I1GL8btn7vttsHd9/view?usp=sharing)
 
-## Our Environment
-anaconda3
+## Python Environment Setup
 
-pytorch 1.1.0
+#### Conda environment
+```bash
+conda create -n pfafn python=3.8
+conda activate pfafn
+```
+#### Dependencies
 
-torchvision 0.3.0
+```bash
+conda install pytorch==1.12.0 torchvision==0.13.0 cudatoolkit=11.3 -c pytorch
 
-cuda 9.0
+pip install opencv-python tensorboardX cupy-cuda113
+```
+#### Device/s
+We train our model on a single **`Nvidia RTX A6000 48GB GPU`**
 
-cupy 6.0.0
+## Dataset
 
-opencv-python 4.5.1
+We have create our own dataset by scraping images of cloth and it's corresponding model from various apparel brand websites. We make the dataset as same structure as viton with the shape of `384x512`.
 
-8 GTX1080 GPU for training; 1 GTX1080 GPU for test
+### Structure
 
-python 3.6
+**Train dataset structure**
+```bash
+└── Polo_traindata
+    ├── train_color
+      ├── ___.jpg
+    ├── train_densepose
+      ├── ___.npy
+    ├── train_edge
+      ├── ___.jpg
+    ├── train_img
+      ├── ___.jpg
+    ├── train_label
+      ├── ___.png
+    └── train_pose
+      ├── ____keypoints.json
+```
 
-## Installation
-conda create -n tryon python=3.6
+**Test dataset structure**
+```bash
+└── Polo_testdata
+    ├── test_clothes
+      ├── ___.jpg
+    ├── test_edge
+      ├── ___.jpg
+    └── test_img
+      ├── ___.jpg
+```
 
-source activate tryon     or     conda activate tryon
-
-conda install pytorch=1.1.0 torchvision=0.3.0 cudatoolkit=9.0 -c pytorch
-
-conda install cupy     or     pip install cupy==6.0.0
-
-pip install opencv-python
-
-git clone https://github.com/geyuying/PF-AFN.git
-
-cd PF-AFN
-
-## Training on VITON dataset 
+## Training on Our dataset 
 1. cd PF-AFN_train
 2. Download the VITON training set from [VITON_train](https://drive.google.com/file/d/1Uc0DTTkSfCPXDhd4CMx2TQlzlC6bDolK/view?usp=sharing) and put the folder "VITON_traindata" under the folder "dataset".
 3. Dowload the VGG_19 model from [VGG_Model](https://drive.google.com/file/d/1Mw24L52FfOT9xXm3I1GL8btn7vttsHd9/view?usp=sharing) and put "vgg19-dcbb9e9d.pth" under the folder "models".
@@ -64,10 +84,6 @@ cd PF-AFN
 6. **To reproduce our results from the saved model, your test environment should be the same as our test environment, especifically for the version of cupy.** 
 
 ![image](https://github.com/geyuying/PF-AFN/blob/main/show/compare.jpg?raw=true)
-## Dataset
-1. [VITON](https://github.com/xthan/VITON) contains a training set of 14,221 image pairs and a test set of 2,032 image pairs, each of which has a front-view woman photo and a top clothing image with the resolution 256 x 192. Our saved model is trained on the VITON training set and tested on the VITON test set.
-2. To train from scratch on VITON training set, you can download [VITON_train](https://drive.google.com/file/d/1Uc0DTTkSfCPXDhd4CMx2TQlzlC6bDolK/view?usp=sharing).
-3. To test our saved model on the complete VITON test set, you can download [VITON_test](https://drive.google.com/file/d/1Y7uV0gomwWyxCvvH8TIbY7D9cTAUy6om/view?usp=sharing).
 
 ## License
 The use of this code is RESTRICTED to non-commercial research and educational purposes.
