@@ -31,11 +31,12 @@ def get_params(opt, size):
     flip = 0
     return {'crop_pos': (x, y), 'flip': flip}
 
-def get_transform_resize(opt, params, method=Image.BICUBIC, normalize=True):
+def get_transform_resize(opt, params, method=Image.Resampling.BICUBIC, normalize=True):
     transform_list = []
     transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.loadSize, method)))
-    osize = [256,192]
-    transform_list.append(transforms.Scale(osize, method))
+    # osize = [256,192]
+    osize = [512,384]
+    transform_list.append(transforms.Resize(osize, interpolation=transforms.InterpolationMode.BICUBIC))
     if 'crop' in opt.resize_or_crop:
         transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.fineSize)))
 
@@ -55,15 +56,17 @@ def get_transform_resize(opt, params, method=Image.BICUBIC, normalize=True):
                                                 (0.5, 0.5, 0.5))]
     return transforms.Compose(transform_list)
 
-def get_transform(opt, params, method=Image.BICUBIC, normalize=True):
+def get_transform(opt, params, method=Image.Resampling.BICUBIC, normalize=True):
     transform_list = []
     if 'resize' in opt.resize_or_crop:
         osize = [opt.loadSize, opt.loadSize]
-        transform_list.append(transforms.Scale(osize, method))   
+        transform_list.append(transforms.Resize(osize, interpolation=transforms.InterpolationMode.BICUBIC))   
     elif 'scale_width' in opt.resize_or_crop:
         transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.loadSize, method)))
-        osize = [256,192]
-        transform_list.append(transforms.Scale(osize, method))  
+        # transform_list.append(transforms.Lambda(lambda img: __scale_width(img, 384, method)))
+        # osize = [256,192]
+        osize = [512,384]
+        transform_list.append(transforms.Resize(osize, interpolation=transforms.InterpolationMode.BICUBIC))  
     if 'crop' in opt.resize_or_crop:
         transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.fineSize)))
 
@@ -86,7 +89,7 @@ def get_transform(opt, params, method=Image.BICUBIC, normalize=True):
 def normalize():    
     return transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
-def __make_power_2(img, base, method=Image.BICUBIC):
+def __make_power_2(img, base, method=Image.Resampling.BICUBIC):
     ow, oh = img.size        
     h = int(round(oh / base) * base)
     w = int(round(ow / base) * base)
@@ -94,12 +97,16 @@ def __make_power_2(img, base, method=Image.BICUBIC):
         return img
     return img.resize((w, h), method)
 
-def __scale_width(img, target_width, method=Image.BICUBIC):
-    ow, oh = img.size
-    if (ow == target_width):
-        return img    
-    w = target_width
-    h = int(target_width * oh / ow)    
+def __scale_width(img, target_width, method=Image.Resampling.BICUBIC):
+    img = np.array(img)
+    oh = img.shape[0]
+    ow = img.shape[1]
+    img = Image.fromarray(np.uint8(img))
+    if (ow == 384):
+        return img 
+    w = 384
+
+    h = int(384 * oh / ow)
     return img.resize((w, h), method)
 
 def __crop(img, pos, size):

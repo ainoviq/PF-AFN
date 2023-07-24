@@ -28,7 +28,7 @@ class BaseOptions():
         self.parser.add_argument('--output_nc', type=int, default=3, help='# of output image channels')
 
         # for setting inputs
-        self.parser.add_argument('--dataroot', type=str,default='dataset/VITON_traindata/')
+        self.parser.add_argument('--dataroot', type=str,default='dataset/Polo_traindata/')
         self.parser.add_argument('--resize_or_crop', type=str, default='scale_width', help='scaling and cropping of images at load time [resize_and_crop|crop|scale_width|scale_width_and_crop]')
         self.parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')        
         self.parser.add_argument('--no_flip', action='store_true', help='if specified, do not flip the images for data argumentation') 
@@ -48,6 +48,10 @@ class BaseOptions():
         self.parser.add_argument('--n_local_enhancers', type=int, default=1, help='number of local enhancers to use')        
         self.parser.add_argument('--niter_fix_global', type=int, default=0, help='number of epochs that we only train the outmost local enhancer')        
         self.parser.add_argument('--tv_weight', type=float, default=0.1, help='weight for TV loss')
+
+        # for rmgn generator
+        self.parser.add_argument('--multilevel', action='store_true', help='if specified, aei multilevel loss')
+        self.parser.add_argument('--predmask', action='store_true', help='if specified, train with 4 channel output')
 
         self.initialized = True
 

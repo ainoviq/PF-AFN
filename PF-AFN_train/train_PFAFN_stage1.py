@@ -48,29 +48,32 @@ dataset_size = len(train_loader)
 print('#training images = %d' % dataset_size)
 
 PF_warp_model = AFWM(opt, 3)
-print(PF_warp_model)
+PF_warp_model = torch.nn.DataParallel(PF_warp_model)
+# print(PF_warp_model)
 PF_warp_model.train()
 PF_warp_model.cuda()
 load_checkpoint_part_parallel(PF_warp_model, opt.PBAFN_warp_checkpoint)
 
-PB_warp_model = AFWM(opt, 45)
-print(PB_warp_model)
+PB_warp_model = AFWM(opt, 52)
+PB_warp_model = torch.nn.DataParallel(PB_warp_model)
+# print(PB_warp_model)
 PB_warp_model.eval()
 PB_warp_model.cuda()
 load_checkpoint_parallel(PB_warp_model, opt.PBAFN_warp_checkpoint)
 
 PB_gen_model = ResUnetGenerator(8, 4, 5, ngf=64, norm_layer=nn.BatchNorm2d)
-print(PB_gen_model)
+PB_gen_model = torch.nn.DataParallel(PB_gen_model)
+# print(PB_gen_model)
 PB_gen_model.eval()
 PB_gen_model.cuda()
 load_checkpoint_parallel(PB_gen_model, opt.PBAFN_gen_checkpoint)
 
 PF_warp_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(PF_warp_model).to(device)
 
-if opt.isTrain and len(opt.gpu_ids):
-    PF_warp_model = torch.nn.parallel.DistributedDataParallel(PF_warp_model, device_ids=[opt.local_rank])
-    PB_warp_model = torch.nn.parallel.DistributedDataParallel(PB_warp_model, device_ids=[opt.local_rank])
-    PB_gen_model = torch.nn.parallel.DistributedDataParallel(PB_gen_model, device_ids=[opt.local_rank])
+# if opt.isTrain and len(opt.gpu_ids):
+#     PF_warp_model = torch.nn.parallel.DistributedDataParallel(PF_warp_model, device_ids=[opt.local_rank])
+#     PB_warp_model = torch.nn.parallel.DistributedDataParallel(PB_warp_model, device_ids=[opt.local_rank])
+#     PB_gen_model = torch.nn.parallel.DistributedDataParallel(PB_gen_model, device_ids=[opt.local_rank])
 
 criterionL1 = nn.L1Loss()
 criterionVGG = VGGLoss()
@@ -109,17 +112,17 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         epoch_iter += 1
         save_fake = True
 
-        t_mask = torch.FloatTensor((data['label'].cpu().numpy() == 7).astype(np.float))
+        t_mask = torch.FloatTensor((data['label'].cpu().numpy() == 12).astype(np.float32))
         data['label'] = data['label'] * (1 - t_mask) + t_mask * 4
         edge = data['edge']
-        pre_clothes_edge = torch.FloatTensor((edge.detach().numpy() > 0.5).astype(np.int))
+        pre_clothes_edge = torch.FloatTensor((edge.detach().numpy() > 0.5).astype(np.int32))
         clothes = data['color']
         clothes = clothes * pre_clothes_edge
         edge_un = data['edge_un']
-        pre_clothes_edge_un = torch.FloatTensor((edge_un.detach().numpy() > 0.5).astype(np.int))
+        pre_clothes_edge_un = torch.FloatTensor((edge_un.detach().numpy() > 0.5).astype(np.int32))
         clothes_un = data['color_un']
         clothes_un = clothes_un * pre_clothes_edge_un
-        person_clothes_edge = torch.FloatTensor((data['label'].cpu().numpy() == 4).astype(np.int))
+        person_clothes_edge = torch.FloatTensor((data['label'].cpu().numpy() == 5).astype(np.int32))
         real_image = data['image']
         person_clothes = real_image * person_clothes_edge
         pose = data['pose']
@@ -127,11 +130,11 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         oneHot_size1 = (size[0], 25, size[2], size[3])
         densepose = torch.cuda.FloatTensor(torch.Size(oneHot_size1)).zero_()
         densepose = densepose.scatter_(1, data['densepose'].data.long().cuda(), 1.0)
-        densepose_fore = data['densepose'] / 24
-        face_mask = torch.FloatTensor((data['label'].cpu().numpy() == 1).astype(np.int)) + torch.FloatTensor((data['label'].cpu().numpy() == 12).astype(np.int))
-        other_clothes_mask = torch.FloatTensor((data['label'].cpu().numpy() == 5).astype(np.int)) + torch.FloatTensor((data['label'].cpu().numpy() == 6).astype(np.int)) \
-                             + torch.FloatTensor((data['label'].cpu().numpy() == 8).astype(np.int)) + torch.FloatTensor((data['label'].cpu().numpy() == 9).astype(np.int)) \
-                             + torch.FloatTensor((data['label'].cpu().numpy() == 10).astype(np.int))
+        densepose_fore = data['densepose'] / data['densepose'].max()
+        face_mask = torch.FloatTensor((data['label'].cpu().numpy() == 2).astype(np.int32)) + torch.FloatTensor((data['label'].cpu().numpy() == 13).astype(np.int32))
+        other_clothes_mask = torch.FloatTensor((data['label'].cpu().numpy() == 19).astype(np.int32)) + torch.FloatTensor((data['label'].cpu().numpy() == 18).astype(np.int32)) \
+                             + torch.FloatTensor((data['label'].cpu().numpy() == 9).astype(np.int32)) + torch.FloatTensor((data['label'].cpu().numpy() == 17).astype(np.int32)) \
+                             + torch.FloatTensor((data['label'].cpu().numpy() == 1).astype(np.int32))
         face_img = face_mask * real_image
         other_clothes_img = other_clothes_mask * real_image
         preserve_mask = torch.cat([face_mask, other_clothes_mask], 1)
@@ -140,17 +143,19 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         flow_out_un = PB_warp_model(concat_un.cuda(), clothes_un.cuda(), pre_clothes_edge_un.cuda())
         warped_cloth_un, last_flow_un, cond_un_all, flow_un_all, delta_list_un, x_all_un, x_edge_all_un, delta_x_all_un, delta_y_all_un = flow_out_un
         warped_prod_edge_un = F.grid_sample(pre_clothes_edge_un.cuda(), last_flow_un.permute(0, 2, 3, 1),
-                                            mode='bilinear', padding_mode='zeros')
+                                            mode='bilinear', padding_mode='zeros', align_corners=True)
 
         flow_out_sup = PB_warp_model(concat_un.cuda(), clothes.cuda(), pre_clothes_edge.cuda())
         warped_cloth_sup, last_flow_sup, cond_sup_all, flow_sup_all, delta_list_sup, x_all_sup, x_edge_all_sup, delta_x_all_sup, delta_y_all_sup = flow_out_sup
 
-        arm_mask = torch.FloatTensor((data['label'].cpu().numpy() == 11).astype(np.float)) + torch.FloatTensor((data['label'].cpu().numpy() == 13).astype(np.float))
-        hand_mask = torch.FloatTensor((data['densepose'].cpu().numpy() == 3).astype(np.int)) + torch.FloatTensor((data['densepose'].cpu().numpy() == 4).astype(np.int))
-        dense_preserve_mask = torch.FloatTensor((data['densepose'].cpu().numpy() == 15).astype(np.int)) + torch.FloatTensor((data['densepose'].cpu().numpy() == 16).astype(np.int)) \
-                              + torch.FloatTensor((data['densepose'].cpu().numpy() == 17).astype(np.int)) + torch.FloatTensor((data['densepose'].cpu().numpy() == 18).astype(np.int)) \
-                              + torch.FloatTensor((data['densepose'].cpu().numpy() == 19).astype(np.int)) + torch.FloatTensor((data['densepose'].cpu().numpy() == 20).astype(np.int)) \
-                              + torch.FloatTensor((data['densepose'].cpu().numpy() == 21).astype(np.int)) + torch.FloatTensor((data['densepose'].cpu().numpy() == 22))
+        arm_mask = torch.FloatTensor((data['label'].cpu().numpy()==14).astype(np.float32)) + torch.FloatTensor((data['label'].cpu().numpy()==15).astype(np.float32))
+
+        densepose_int = (data['densepose'].cpu().numpy() * 255).astype(np.int32)
+        hand_mask = torch.FloatTensor((densepose_int==3).astype(np.int32)) + torch.FloatTensor((densepose_int==4).astype(np.int32))
+        dense_preserve_mask = torch.FloatTensor((densepose_int==15).astype(np.int32))+torch.FloatTensor((densepose_int==16).astype(np.int32))\
+                              +torch.FloatTensor((densepose_int==17).astype(np.int32))+torch.FloatTensor((densepose_int==18).astype(np.int32))\
+                              +torch.FloatTensor((densepose_int==19).astype(np.int32))+torch.FloatTensor((densepose_int==20).astype(np.int32))\
+                              +torch.FloatTensor((densepose_int==21).astype(np.int32))+torch.FloatTensor((densepose_int==22))
         hand_img = (arm_mask * hand_mask) * real_image
         dense_preserve_mask = dense_preserve_mask.cuda() * (1 - warped_prod_edge_un)
         preserve_region = face_img + other_clothes_img + hand_img
@@ -174,11 +179,11 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         loss_flow_sup_all = 0
 
         l1_loss_batch = torch.abs(warped_cloth_sup.detach() - person_clothes.cuda())
-        l1_loss_batch = l1_loss_batch.reshape(opt.batchSize, 3 * 256 * 192)
-        l1_loss_batch = l1_loss_batch.sum(dim=1) / (3 * 256 * 192)
+        l1_loss_batch = l1_loss_batch.reshape(opt.batchSize, 3 * 512 * 384)
+        l1_loss_batch = l1_loss_batch.sum(dim=1) / (3 * 512 * 384)
         l1_loss_batch_pred = torch.abs(warped_cloth.detach() - person_clothes.cuda())
-        l1_loss_batch_pred = l1_loss_batch_pred.reshape(opt.batchSize, 3 * 256 * 192)
-        l1_loss_batch_pred = l1_loss_batch_pred.sum(dim=1) / (3 * 256 * 192)
+        l1_loss_batch_pred = l1_loss_batch_pred.reshape(opt.batchSize, 3 * 512 * 384)
+        l1_loss_batch_pred = l1_loss_batch_pred.sum(dim=1) / (3 * 512 * 384)
         weight = (l1_loss_batch < l1_loss_batch_pred).float()
         num_all = len(np.where(weight.cpu().numpy() > 0)[0])
         if num_all == 0:
