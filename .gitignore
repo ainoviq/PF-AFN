@@ -1,6 +1,7 @@
 */checkpoints/*
 */dataset/*
 */runs/*
+*/results/*
 */sample/*
 *__pycache__
 *.pyc
