@@ -43,7 +43,7 @@ train_loader = DataLoader(train_data, batch_size=opt.batchSize, shuffle=False,
 dataset_size = len(train_loader)
 print('#training images = %d' % dataset_size)
 
-warp_model = AFWM(opt, 45)
+warp_model = AFWM(opt, 52)
 print(warp_model)
 warp_model.train()
 warp_model.cuda()
@@ -102,7 +102,7 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         concat = torch.cat([preserve_mask.cuda(),densepose,pose.cuda()],1)
 
         flow_out = model(concat.cuda(), clothes.cuda(), pre_clothes_edge.cuda())
-        warped_cloth, last_flow, _1, _2, delta_list, x_all, x_edge_all, delta_x_all, delta_y_all = flow_out
+        warped_cloth, last_flow, _, _, delta_list, x_all, x_edge_all, delta_x_all, delta_y_all = flow_out
         warped_prod_edge = x_edge_all[4]
 
         epsilon = 0.001
@@ -135,7 +135,7 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
 
         path = 'sample/'+opt.name
         os.makedirs(path,exist_ok=True)
-        if step % 1000 == 0:
+        if step % 50 == 0:
           if opt.local_rank == 0:
             a = real_image.float().cuda()
             b = person_clothes.cuda()
@@ -158,7 +158,7 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         eta = str(datetime.timedelta(seconds=int(eta)))
         time_stamp = datetime.datetime.now()
         now = time_stamp.strftime('%Y.%m.%d-%H:%M:%S')
-        if step % 100 == 0:
+        if step % 50 == 0:
           if opt.local_rank == 0:
             print('{}:{}:[step-{}]--[loss-{:.6f}]--[ETA-{}]'.format(now, epoch_iter,step, loss_all,eta))
 
